@@ -57,65 +57,69 @@ def parse_url(url):
 
     return file_path, path_info, query_string
 
-def application(environ, start_response):
-    content = None
-    file_path, path_info, query_string = parse_url(environ['PATH_INFO'])
-    php_args = ['php5-cgi', file_path]
-    php_env = {}
-    # REDIRECT_STATUS must be set. See:
-    # http://php.net/manual/en/security.cgi-bin.force-redirect.php
-    php_env['REDIRECT_STATUS'] = '1'
-    php_env['REQUEST_METHOD'] = environ.get('REQUEST_METHOD', 'GET')
-    php_env['PATH_INFO'] = path_info
-    php_env['QUERY_STRING'] = environ['QUERY_STRING']
-    php_env['SCRIPT_FILENAME'] = os.path.join(HERE, file_path)
+class PHPApp(object):
+    def __init__(self, doc_root=None):
+        self.doc_root = doc_root
 
-    # Construct the partial URL that PHP expects for REQUEST_URI
-    # (http://php.net/manual/en/reserved.variables.server.php) using part of
-    # the process described in PEP-333
-    # (http://www.python.org/dev/peps/pep-0333/#url-reconstruction).
-    php_env['REQUEST_URI'] = urllib.quote(environ['PATH_INFO'])
-    if php_env['QUERY_STRING']:
-        php_env['REQUEST_URI'] += '?' + php_env['QUERY_STRING']
+    def __call__(self, environ, start_response):
+        content = None
+        file_path, path_info, query_string = parse_url(environ['PATH_INFO'])
+        php_args = ['php5-cgi', file_path]
+        php_env = {}
+        # REDIRECT_STATUS must be set. See:
+        # http://php.net/manual/en/security.cgi-bin.force-redirect.php
+        php_env['REDIRECT_STATUS'] = '1'
+        php_env['REQUEST_METHOD'] = environ.get('REQUEST_METHOD', 'GET')
+        php_env['PATH_INFO'] = path_info
+        php_env['QUERY_STRING'] = environ['QUERY_STRING']
+        php_env['SCRIPT_FILENAME'] = os.path.join(HERE, file_path)
 
-    if 'CONTENT_TYPE' in environ:
-        php_env['CONTENT_TYPE'] = environ['CONTENT_TYPE']
-        php_env['HTTP_CONTENT_TYPE'] = environ['CONTENT_TYPE']
+        # Construct the partial URL that PHP expects for REQUEST_URI
+        # (http://php.net/manual/en/reserved.variables.server.php) using part of
+        # the process described in PEP-333
+        # (http://www.python.org/dev/peps/pep-0333/#url-reconstruction).
+        php_env['REQUEST_URI'] = urllib.quote(environ['PATH_INFO'])
+        if php_env['QUERY_STRING']:
+            php_env['REQUEST_URI'] += '?' + php_env['QUERY_STRING']
 
-    # POST data
-    if 'CONTENT_LENGTH' in environ:
-        if environ['CONTENT_LENGTH'].strip():
-            php_env['CONTENT_LENGTH'] = environ['CONTENT_LENGTH']
-            php_env['HTTP_CONTENT_LENGTH'] = environ['CONTENT_LENGTH']
-            content = environ['wsgi.input'].read(int(environ['CONTENT_LENGTH']))
+        if 'CONTENT_TYPE' in environ:
+            php_env['CONTENT_TYPE'] = environ['CONTENT_TYPE']
+            php_env['HTTP_CONTENT_TYPE'] = environ['CONTENT_TYPE']
 
-    try:
-        p = subprocess.Popen(php_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE, env=php_env, cwd=HERE)
-    except Exception as e:
-        start_response('500 Internal Server Error', [('Content-Type', 'text/html')])
-        return [traceback.format_exc()]
+        # POST data
+        if 'CONTENT_LENGTH' in environ:
+            if environ['CONTENT_LENGTH'].strip():
+                php_env['CONTENT_LENGTH'] = environ['CONTENT_LENGTH']
+                php_env['HTTP_CONTENT_LENGTH'] = environ['CONTENT_LENGTH']
+                content = environ['wsgi.input'].read(int(environ['CONTENT_LENGTH']))
 
-    stdout, stderr = p.communicate(content)
+        try:
+            p = subprocess.Popen(php_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE, env=php_env, cwd=HERE)
+        except Exception as e:
+            start_response('500 Internal Server Error', [('Content-Type', 'text/html')])
+            return [traceback.format_exc()]
 
-    message = httplib.HTTPMessage(cStringIO.StringIO(stdout))
-    assert 'Content-Type' in message, 'invalid CGI response: %r' % stdout
+        stdout, stderr = p.communicate(content)
 
-    if 'Status' in message:
-        status = message['Status']
-        del message['Status']
-    else:
-        status = '200 OK'
+        message = httplib.HTTPMessage(cStringIO.StringIO(stdout))
+        assert 'Content-Type' in message, 'invalid CGI response: %r' % stdout
 
-    # Ensures that we avoid merging repeat headers into a single header,
-    # allowing use of multiple Set-Cookie headers.
-    headers = []
-    for name in message:
-        for value in message.getheaders(name):
-            headers.append((name, value))
+        if 'Status' in message:
+            status = message['Status']
+            del message['Status']
+        else:
+            status = '200 OK'
 
-    start_response(status, headers)
-    return [message.fp.read()]
+        # Ensures that we avoid merging repeat headers into a single header,
+        # allowing use of multiple Set-Cookie headers.
+        headers = []
+        for name in message:
+            for value in message.getheaders(name):
+                headers.append((name, value))
+
+        start_response(status, headers)
+        return [message.fp.read()]
 
 class StaticApp(SimpleHTTPRequestHandler):
     """WSGI application for serving static files.
@@ -200,6 +204,7 @@ class StaticMiddleware:
         return path2
 
 if __name__ == '__main__':
+    application = PHPApp()
     server = make_server('0.0.0.0', 8080, StaticMiddleware(application))
     print "Running at http://127.0.0.1:8080 ..."
     try:
