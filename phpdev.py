@@ -28,22 +28,45 @@ import subprocess
 import cStringIO
 import traceback
 
+from urlparse import urlparse
 from wsgiref.simple_server import make_server
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 
+def parse_url(url):
+    po = urlparse(url) 
+    file_path = po.path.lstrip('/')
+    file_path_part = []
+    path_info_part = []
+    php_part_done = False
+    for segment in file_path.split('/'):
+        if '.php' in segment:
+            php_part_done = True
+            file_path_part.append(segment)
+            continue
+        if not php_part_done:
+            file_path_part.append(segment)
+        else:
+            path_info_part.append(segment)
+
+    path_info = '/'.join(path_info_part)
+    file_path = '/'.join(file_path_part)
+    query_string = po.query
+
+    return file_path, path_info, query_string
+
 def application(environ, start_response):
     content = None
-    php_script = environ['PATH_INFO'].lstrip('/')
-    php_args = ['php5-cgi', php_script]
+    file_path, path_info, query_string = parse_url(environ['PATH_INFO'])
+    php_args = ['php5-cgi', file_path]
     php_env = {}
     # REDIRECT_STATUS must be set. See:
     # http://php.net/manual/en/security.cgi-bin.force-redirect.php
     php_env['REDIRECT_STATUS'] = '1'
     php_env['REQUEST_METHOD'] = environ.get('REQUEST_METHOD', 'GET')
-    php_env['PATH_INFO'] = ''
+    php_env['PATH_INFO'] = path_info
     php_env['QUERY_STRING'] = environ['QUERY_STRING']
-    php_env['SCRIPT_FILENAME'] = os.path.join(HERE, php_script)
+    php_env['SCRIPT_FILENAME'] = os.path.join(HERE, file_path)
 
     # Construct the partial URL that PHP expects for REQUEST_URI
     # (http://php.net/manual/en/reserved.variables.server.php) using part of
