@@ -140,12 +140,17 @@ class PHPApp(object):
         return [message.fp.read()]
 
     def serve_static(self, environ, start_response, file_path):
+        if not os.path.exists(file_path):
+            start_response("404 Not Found", [('Content-type', 'text/plain')])
+            return ['Not Found',]
+
         mimetype, encoding = mimetypes.guess_type(file_path)
         size = os.path.getsize(file_path)
         headers = [
-            ("Content-type", mimetype),
+            ("Content-type", mimetype if mimetype else 'text/plain'),
             ("Content-length", str(size)),
         ]
+
         start_response("200 OK", headers)
         return self.send_file(file_path, size)
 
