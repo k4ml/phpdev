@@ -26,6 +26,5 @@ The following applications has been tested and working fine:-
 
 * WolfCMS - http://www.wolfcms.org/
 * Drupal 7
-    - installation went fine but got Not found when accessing front page.
 
 [1]:https://googleappengine.googlecode.com/svn/trunk/python/google/appengine/tools/devappserver2/php/runtime.py
