@@ -96,6 +96,7 @@ class PHPApp(object):
         php_env['SCRIPT_NAME'] = ''
         php_env['HTTP_HOST'] = environ['HTTP_HOST']
         php_env['SERVER_SOFTWARE'] = 'phpdev.py'
+        php_env['HTTP_COOKIE'] = environ.get('HTTP_COOKIE', '')
 
         # Construct the partial URL that PHP expects for REQUEST_URI
         # (http://php.net/manual/en/reserved.variables.server.php) using part of
