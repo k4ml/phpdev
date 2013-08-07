@@ -11,6 +11,7 @@ Usage
     <?php
     phpinfo();
     ^D
+    wget https://raw.github.com/k4ml/phpdev/master/phpdev.py
     python phpdev.py
 
 Above will start a development server accesible at http://127.0.0.1:8080.
