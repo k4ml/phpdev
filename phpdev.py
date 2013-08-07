@@ -28,6 +28,7 @@ import subprocess
 import cStringIO
 import traceback
 import posixpath
+import mimetypes
 
 from urlparse import urlparse
 from wsgiref.simple_server import make_server
@@ -61,10 +62,24 @@ class PHPApp(object):
     def __init__(self, doc_root=None):
         self.doc_root = doc_root
 
+        if doc_root:
+            self.cwd = os.path.join(HERE, doc_root)
+        else:
+            self.cwd = HERE
+
+    def _abs_file_path(self, path):
+        return os.path.join(self.cwd, path)
+
     def __call__(self, environ, start_response):
         content = None
         file_path, path_info, query_string = parse_url(environ['PATH_INFO'])
-        php_args = ['php5-cgi', file_path]
+
+        extension = file_path.split('/')[-1][-3:]
+
+        if extension != 'php':
+            return self.serve_static(environ, start_response, self._abs_file_path(file_path))
+
+        php_args = ['php5-cgi', self._abs_file_path(file_path)]
         php_env = {}
         # REDIRECT_STATUS must be set. See:
         # http://php.net/manual/en/security.cgi-bin.force-redirect.php
@@ -72,7 +87,7 @@ class PHPApp(object):
         php_env['REQUEST_METHOD'] = environ.get('REQUEST_METHOD', 'GET')
         php_env['PATH_INFO'] = path_info
         php_env['QUERY_STRING'] = environ['QUERY_STRING']
-        php_env['SCRIPT_FILENAME'] = os.path.join(HERE, file_path)
+        php_env['SCRIPT_FILENAME'] = os.path.join(HERE, self._abs_file_path(file_path))
 
         # Construct the partial URL that PHP expects for REQUEST_URI
         # (http://php.net/manual/en/reserved.variables.server.php) using part of
@@ -95,7 +110,7 @@ class PHPApp(object):
 
         try:
             p = subprocess.Popen(php_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE, env=php_env, cwd=HERE)
+                                 stderr=subprocess.PIPE, env=php_env, cwd=self.cwd)
         except Exception as e:
             start_response('500 Internal Server Error', [('Content-Type', 'text/html')])
             return [traceback.format_exc()]
@@ -121,91 +136,29 @@ class PHPApp(object):
         start_response(status, headers)
         return [message.fp.read()]
 
-class StaticApp(SimpleHTTPRequestHandler):
-    """WSGI application for serving static files.
+    def serve_static(self, environ, start_response, file_path):
+        mimetype, encoding = mimetypes.guess_type(file_path)
+        size = os.path.getsize(file_path)
+        headers = [
+            ("Content-type", mimetype),
+            ("Content-length", str(size)),
+        ]
+        start_response("200 OK", headers)
+        return self.send_file(file_path, size)
 
-    Original code - https://raw.github.com/webpy/webpy/master/web/httpserver.py
-    """
-    def __init__(self, environ, start_response):
-        self.headers = []
-        self.environ = environ
-        self.start_response = start_response
-
-    def send_response(self, status, msg=""):
-        self.status = str(status) + " " + msg
-
-    def send_header(self, name, value):
-        self.headers.append((name, value))
-
-    def end_headers(self):
-        pass
-
-    def log_message(*a): pass
-
-    def __iter__(self):
-        environ = self.environ
-
-        self.path = environ.get('PATH_INFO', '')
-        self.client_address = environ.get('REMOTE_ADDR','-'), \
-                              environ.get('REMOTE_PORT','-')
-        self.command = environ.get('REQUEST_METHOD', '-')
-
-        from cStringIO import StringIO
-        self.wfile = StringIO() # for capturing error
-
-        try:
-            path = self.translate_path(self.path)
-            etag = '"%s"' % os.path.getmtime(path)
-            client_etag = environ.get('HTTP_IF_NONE_MATCH')
-            self.send_header('ETag', etag)
-            if etag == client_etag:
-                self.send_response(304, "Not Modified")
-                self.start_response(self.status, self.headers)
-                raise StopIteration
-        except OSError:
-            pass # Probably a 404
-
-        f = self.send_head()
-        self.start_response(self.status, self.headers)
-
-        if f:
-            block_size = 16 * 1024
-            while True:
-                buf = f.read(block_size)
-                if not buf:
-                    break
-                yield buf
-            f.close()
-        else:
-            value = self.wfile.getvalue()
-            yield value
-
-class StaticMiddleware:
-    """WSGI middleware for serving static files."""
-    def __init__(self, app, prefix='/static/'):
-        self.app = app
-        self.prefix = prefix
-        
-    def __call__(self, environ, start_response):
-        path = environ.get('PATH_INFO', '')
-        path = self.normpath(path)
-        file_path, path_info, query_string = parse_url(path)
-        extension = file_path.split('/')[-1][-3:]
-
-        if extension != 'php':
-            return StaticApp(environ, start_response)
-        else:
-            return self.app(environ, start_response)
-
-    def normpath(self, path):
-        path2 = posixpath.normpath(urllib.unquote(path))
-        if path.endswith("/"):
-            path2 += "/"
-        return path2
+    def send_file(self, file_path, size):
+        BLOCK_SIZE = 4096
+        fh = open(file_path, 'r')
+        while True:
+            block = fh.read(BLOCK_SIZE)
+            if not block:
+                fh.close()
+                break
+            yield block
 
 if __name__ == '__main__':
-    application = PHPApp()
-    server = make_server('0.0.0.0', 8080, StaticMiddleware(application))
+    application = PHPApp(doc_root='www')
+    server = make_server('0.0.0.0', 8080, application)
     print "Running at http://127.0.0.1:8080 ..."
     try:
         server.serve_forever()
