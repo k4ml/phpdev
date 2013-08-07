@@ -117,6 +117,9 @@ class PHPApp(object):
                 php_env['HTTP_CONTENT_LENGTH'] = environ['CONTENT_LENGTH']
                 content = environ['wsgi.input'].read(int(environ['CONTENT_LENGTH']))
 
+        return self.serve_php(environ, start_response, php_args, php_env, content)
+
+    def serve_php(self, environ, start_response, php_args, php_env, content):
         try:
             p = subprocess.Popen(php_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE, env=php_env, cwd=self.cwd)
