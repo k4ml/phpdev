@@ -53,6 +53,17 @@ def application(environ, start_response):
     if php_env['QUERY_STRING']:
         php_env['REQUEST_URI'] += '?' + php_env['QUERY_STRING']
 
+    if 'CONTENT_TYPE' in environ:
+        php_env['CONTENT_TYPE'] = environ['CONTENT_TYPE']
+        php_env['HTTP_CONTENT_TYPE'] = environ['CONTENT_TYPE']
+
+    # POST data
+    if 'CONTENT_LENGTH' in environ:
+        if environ['CONTENT_LENGTH'].strip():
+            php_env['CONTENT_LENGTH'] = environ['CONTENT_LENGTH']
+            php_env['HTTP_CONTENT_LENGTH'] = environ['CONTENT_LENGTH']
+            content = environ['wsgi.input'].read(int(environ['CONTENT_LENGTH']))
+
     try:
         p = subprocess.Popen(php_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, env=php_env, cwd=HERE)
