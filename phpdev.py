@@ -71,23 +71,28 @@ class PHPApp(object):
         return os.path.join(self.cwd, path)
 
     def __call__(self, environ, start_response):
+        php_env = {}
         content = None
         file_path, path_info, query_string = parse_url(environ['PATH_INFO'])
+        php_env['PHP_SELF'] = file_path + path_info
+        php_env['REMOTE_ADDR'] = environ['REMOTE_ADDR']
+
+        file_path = self._abs_file_path(file_path)
+        if os.path.isdir(file_path):
+            file_path = os.path.join(file_path, 'index.php')
 
         extension = file_path.split('/')[-1][-3:]
-
         if extension != 'php':
-            return self.serve_static(environ, start_response, self._abs_file_path(file_path))
+            return self.serve_static(environ, start_response, file_path)
 
-        php_args = ['php5-cgi', self._abs_file_path(file_path)]
-        php_env = {}
+        php_args = ['php5-cgi', file_path]
         # REDIRECT_STATUS must be set. See:
         # http://php.net/manual/en/security.cgi-bin.force-redirect.php
         php_env['REDIRECT_STATUS'] = '1'
         php_env['REQUEST_METHOD'] = environ.get('REQUEST_METHOD', 'GET')
         php_env['PATH_INFO'] = path_info
         php_env['QUERY_STRING'] = environ['QUERY_STRING']
-        php_env['SCRIPT_FILENAME'] = os.path.join(HERE, self._abs_file_path(file_path))
+        php_env['SCRIPT_FILENAME'] = os.path.join(HERE, file_path)
         php_env['SCRIPT_NAME'] = ''
         php_env['HTTP_HOST'] = environ['HTTP_HOST']
         php_env['SERVER_SOFTWARE'] = 'phpdev.py'
