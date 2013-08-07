@@ -75,7 +75,7 @@ class PHPApp(object):
         content = None
         file_path, path_info, query_string = parse_url(environ['PATH_INFO'])
         php_env['PHP_SELF'] = file_path + path_info
-        php_env['REMOTE_ADDR'] = environ['REMOTE_ADDR']
+        php_env['REMOTE_ADDR'] = environ.get('REMOTE_ADDR', '')
 
         file_path = self._abs_file_path(file_path)
         if os.path.isdir(file_path):

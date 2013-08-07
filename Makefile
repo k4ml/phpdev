@@ -1,3 +1,3 @@
 
 test:
-	PYTHONPATH=`pwd` python tests/tests_url.py
+	PYTHONPATH=`pwd` nosetests -v -s tests/
