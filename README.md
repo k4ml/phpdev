@@ -25,6 +25,6 @@ Applications
 The following applications has been tested and working fine:-
 
 * WolfCMS - http://www.wolfcms.org/
-* Drupal 7
+* Drupal 7 - work fine but very slow.
 
 [1]:https://googleappengine.googlecode.com/svn/trunk/python/google/appengine/tools/devappserver2/php/runtime.py
