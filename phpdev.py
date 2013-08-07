@@ -157,7 +157,7 @@ class PHPApp(object):
             yield block
 
 if __name__ == '__main__':
-    application = PHPApp(doc_root='www')
+    application = PHPApp()
     server = make_server('0.0.0.0', 8080, application)
     print "Running at http://127.0.0.1:8080 ..."
     try:
