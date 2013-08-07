@@ -13,7 +13,7 @@ Usage
     ^D
     python phpdev.py
 
-Above will start a development server accesible at http://127.0.0.1:9000.
+Above will start a development server accesible at http://127.0.0.1:8080.
 
 WARNING
 =======
