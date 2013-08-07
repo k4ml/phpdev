@@ -88,6 +88,9 @@ class PHPApp(object):
         php_env['PATH_INFO'] = path_info
         php_env['QUERY_STRING'] = environ['QUERY_STRING']
         php_env['SCRIPT_FILENAME'] = os.path.join(HERE, self._abs_file_path(file_path))
+        php_env['SCRIPT_NAME'] = ''
+        php_env['HTTP_HOST'] = environ['HTTP_HOST']
+        php_env['SERVER_SOFTWARE'] = 'phpdev.py'
 
         # Construct the partial URL that PHP expects for REQUEST_URI
         # (http://php.net/manual/en/reserved.variables.server.php) using part of
