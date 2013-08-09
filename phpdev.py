@@ -174,9 +174,15 @@ class PHPApp(object):
             yield block
 
 if __name__ == '__main__':
-    application = PHPApp()
-    server = make_server('0.0.0.0', 8080, application)
-    print "Running at http://127.0.0.1:8080 ..."
+    import optparse
+    parser = optparse.OptionParser()
+    parser.add_option('-d', '--doc_root', default=None)
+    parser.add_option('-p', '--port', default=8080, type='int')
+    options, remainder = parser.parse_args()
+
+    application = PHPApp(doc_root=options.doc_root)
+    server = make_server('0.0.0.0', options.port, application)
+    print "Running at http://127.0.0.1:%d ..." % options.port
     try:
         server.serve_forever()
     except KeyboardInterrupt:
