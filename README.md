@@ -1,6 +1,7 @@
 Introduction
 ============
-PHP dev server using Python wsgiref. Some code taken from [Google App Engine SDK][1].
+PHP dev server using Python wsgiref. Some code taken from [Google App Engine SDK][1]. It require `php5-cgi`
+binary available in `PATH`. Tested on Ubuntu 12.04.
 
 Usage
 =====
