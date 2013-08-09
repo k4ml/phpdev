@@ -178,11 +178,12 @@ if __name__ == '__main__':
     parser = optparse.OptionParser()
     parser.add_option('-d', '--doc_root', default=None)
     parser.add_option('-p', '--port', default=8080, type='int')
+    parser.add_option('-a', '--address', default='127.0.0.1', help='Address to listen, default to 127.0.0.1')
     options, remainder = parser.parse_args()
 
     application = PHPApp(doc_root=options.doc_root)
-    server = make_server('0.0.0.0', options.port, application)
-    print "Running at http://127.0.0.1:%d ..." % options.port
+    server = make_server(options.address, options.port, application)
+    print "Running at http://%s:%d ..." % (options.address, options.port)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
